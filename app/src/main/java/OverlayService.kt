@@ -26,7 +26,6 @@ class OverlayService : Service() {
 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
-        // Stworzenie pływającego przycisku/dymku
         floatingView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#CC000000"))
@@ -48,7 +47,7 @@ class OverlayService : Service() {
                 autoFill.autofillData(generatedData)
                 Toast.makeText(this, "Uzupełniono wylosowane dane!", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Włącz najpierw Usługę Dostępności w ustawieniach!", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Włącz najpierw Usługę Dostępności!", Toast.LENGTH_LONG).show()
             }
         }
 
@@ -73,7 +72,6 @@ class OverlayService : Service() {
             y = 300
         }
 
-        // Możliwość przeciągania dymku po ekranie palcem
         floatingView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
