@@ -14,6 +14,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
 import java.util.Locale
+import kotlin.math.abs
 
 class OverlayService : Service() {
 
@@ -40,29 +41,6 @@ class OverlayService : Service() {
             setTextColor(Color.WHITE)
         }
 
-        btnFill.setOnClickListener {
-            // 1. Wywołanie generatora (zwraca VssResult z wylosowaną deltą i wynikami)
-            val generatedResult = VssDataGenerator.generateRandomizedWzmocnionePodloze()
-
-            // 2. Wyciągnięcie listy liczb i zamiana na napisy (np. "0.19")
-            val formattedData: List<String> = generatedResult.settlements.map { value ->
-                String.format(Locale.US, "%.2f", value)
-            }
-
-            val autoFill = VssAutoFillService.instance
-
-            if (autoFill != null) {
-                // 3. Przekazanie poprawnego typu List<String> do autowypełniania
-                autoFill.autofillData(formattedData)
-                val deltaFormatted = String.format(Locale.US, "%.2f", generatedResult.deltaUsed)
-                Toast.makeText(this, "Uzupełniono 23 pola! (Delta: +$deltaFormatted mm)", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Włącz najpierw Usługę Dostępności!", Toast.LENGTH_LONG).show()
-            }
-        }
-
-        floatingView.addView(btnFill)
-
         val layoutParamsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         } else {
@@ -82,13 +60,14 @@ class OverlayService : Service() {
             y = 300
         }
 
-        floatingView.setOnTouchListener(object : View.OnTouchListener {
+        // Podpinamy dotyk bezpośrednio pod przycisk rozróżniając kliknięcie od przeciągania
+        btnFill.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
             private var initialTouchY = 0f
 
-            override fun onTouch(v: View?, event: MotionEvent): Boolean {
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         initialX = params.x
@@ -103,12 +82,43 @@ class OverlayService : Service() {
                         windowManager.updateViewLayout(floatingView, params)
                         return true
                     }
+                    MotionEvent.ACTION_UP -> {
+                        val diffX = abs(event.rawX - initialTouchX)
+                        val diffY = abs(event.rawY - initialTouchY)
+
+                        // Zrozumienie gestu: jeśli ruch < 10px -> KLIKNIĘCIE
+                        if (diffX < 10 && diffY < 10) {
+                            executeFillAction()
+                        }
+                        return true
+                    }
                 }
                 return false
             }
         })
 
+        floatingView.addView(btnFill)
         windowManager.addView(floatingView, params)
+    }
+
+    private fun executeFillAction() {
+        // 1. Generowanie 23 wyników z pojedynczą deltą dla całej serii
+        val generatedResult = VssDataGenerator.generateRandomizedWzmocnionePodloze()
+
+        // 2. Formatowanie na tekst z kropką (np. "0.19")
+        val formattedData: List<String> = generatedResult.settlements.map { value ->
+            String.format(Locale.US, "%.2f", value)
+        }
+
+        val autoFill = VssAutoFillService.instance
+
+        if (autoFill != null) {
+            autoFill.autofillData(formattedData)
+            val deltaFormatted = String.format(Locale.US, "%.2f", generatedResult.deltaUsed)
+            Toast.makeText(this, "Uzupełniono 23 pola! (Delta: +$deltaFormatted mm)", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Włącz najpierw Usługę Dostępności w ustawieniach!", Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onDestroy() {
