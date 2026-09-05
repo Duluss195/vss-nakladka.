@@ -13,6 +13,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
+import java.util.Locale
 
 class OverlayService : Service() {
 
@@ -40,12 +41,21 @@ class OverlayService : Service() {
         }
 
         btnFill.setOnClickListener {
-            val generatedData = VssDataGenerator.generateRandomizedWzmocnionePodloze()
+            // 1. Wywołanie generatora (zwraca VssResult z wylosowaną deltą i wynikami)
+            val generatedResult = VssDataGenerator.generateRandomizedWzmocnionePodloze()
+
+            // 2. Wyciągnięcie listy liczb i zamiana na napisy (np. "0.19")
+            val formattedData: List<String> = generatedResult.settlements.map { value ->
+                String.format(Locale.US, "%.2f", value)
+            }
+
             val autoFill = VssAutoFillService.instance
 
             if (autoFill != null) {
-                autoFill.autofillData(generatedData)
-                Toast.makeText(this, "Uzupełniono wylosowane dane!", Toast.LENGTH_SHORT).show()
+                // 3. Przekazanie poprawnego typu List<String> do autowypełniania
+                autoFill.autofillData(formattedData)
+                val deltaFormatted = String.format(Locale.US, "%.2f", generatedResult.deltaUsed)
+                Toast.makeText(this, "Uzupełniono 23 pola! (Delta: +$deltaFormatted mm)", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this, "Włącz najpierw Usługę Dostępności!", Toast.LENGTH_LONG).show()
             }
