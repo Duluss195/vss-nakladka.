@@ -1,11 +1,16 @@
 package com.example.vssapp
 
 import kotlin.random.Random
-import java.util.Locale
+import kotlin.math.roundToInt
 
 object VssDataGenerator {
 
-    // Bazowa sekwencja dla Wzmocnionego Podłoża
+    data class VssResult(
+        val deltaUsed: Double,
+        val settlements: List<Double>
+    )
+
+    // Twoja gotowa, sztywna sekwencja ugięć (23 punkty pomiarowe: naciski, odciążenie, II cykl)
     private val baseValues = listOf(
         0.00,       // 0.02 MPa
         0.19, 0.22, // 0.05 MPa
@@ -26,12 +31,20 @@ object VssDataGenerator {
         1.42        // II cykl 0.25
     )
 
-    // Generuje osiadania dodając losowo od 0.01 do 0.05 mm do każdego pomiaru
-    fun generateRandomizedWzmocnionePodloze(): List<String> {
-        return baseValues.map { base ->
-            val randomOffset = Random.nextDouble(0.01, 0.05)
-            val finalValue = base + randomOffset
-            String.format(Locale.US, "%.2f", finalValue)
+    fun generateRandomizedWzmocnionePodloze(): VssResult {
+        // 1. Losujemy JEDNO wspólne przesunięcie dla całej serii (9 wariantów: 0.00, 0.01, ..., 0.08 mm)
+        val deltaSteps = Random.nextInt(0, 9) // zwraca losową liczbę od 0 do 8
+        val delta = deltaSteps * 0.01
+
+        // 2. Dodajemy dokładnie tę samą wartość delta do KAŻDEJ z 23 pozycji
+        val settlements = baseValues.map { base ->
+            val finalValue = base + delta
+            ((finalValue * 100.0).roundToInt()) / 100.0 // Zaokrąglenie do 2 miejsc po przecinku
         }
+
+        return VssResult(
+            deltaUsed = delta,
+            settlements = settlements
+        )
     }
 }
