@@ -26,20 +26,27 @@ class OverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
 
+        Toast.makeText(this, "Startuję nakładkę...", Toast.LENGTH_SHORT).show()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
+        // Tworzymy kontener ramki
         floatingView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#CC000000"))
+            setBackgroundColor(Color.parseColor("#E6000000")) // Ciemne, półprzezroczyste tło
             setPadding(16, 16, 16, 16)
         }
 
+        // Tworzymy przycisk wewnątrz
         val btnFill = Button(this).apply {
             text = "VSS: Wzmocnione\n[Uzupełnij]"
-            textSize = 12f
+            textSize = 13f
             setBackgroundColor(Color.parseColor("#0066FF"))
             setTextColor(Color.WHITE)
+            isClickable = false // Wyłączamy osobną obsługę w przycisku - dotyk przejmuje cała ramka
+            isFocusable = false
         }
+
+        floatingView.addView(btnFill)
 
         val layoutParamsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -52,7 +59,7 @@ class OverlayService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             layoutParamsType,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -60,8 +67,8 @@ class OverlayService : Service() {
             y = 300
         }
 
-        // Podpinamy dotyk bezpośrednio pod przycisk rozróżniając kliknięcie od przeciągania
-        btnFill.setOnTouchListener(object : View.OnTouchListener {
+        // Jedna czytelna logika dotyku dla całej nakładki
+        floatingView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
@@ -86,8 +93,8 @@ class OverlayService : Service() {
                         val diffX = abs(event.rawX - initialTouchX)
                         val diffY = abs(event.rawY - initialTouchY)
 
-                        // Zrozumienie gestu: jeśli ruch < 10px -> KLIKNIĘCIE
-                        if (diffX < 10 && diffY < 10) {
+                        // Ruch mniejszy niż 15px = Kliknięcie
+                        if (diffX < 15 && diffY < 15) {
                             executeFillAction()
                         }
                         return true
@@ -97,15 +104,11 @@ class OverlayService : Service() {
             }
         })
 
-        floatingView.addView(btnFill)
         windowManager.addView(floatingView, params)
     }
 
     private fun executeFillAction() {
-        // 1. Generowanie 23 wyników z pojedynczą deltą dla całej serii
         val generatedResult = VssDataGenerator.generateRandomizedWzmocnionePodloze()
-
-        // 2. Formatowanie na tekst z kropką (np. "0.19")
         val formattedData: List<String> = generatedResult.settlements.map { value ->
             String.format(Locale.US, "%.2f", value)
         }

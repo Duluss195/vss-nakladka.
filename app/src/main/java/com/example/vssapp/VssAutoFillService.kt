@@ -16,35 +16,37 @@ class VssAutoFillService : AccessibilityService() {
         instance = this
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
-    override fun onInterrupt() {}
-
-    fun autofillData(values: List<String>) {
+    fun autofillData(data: List<String>) {
         val rootNode = rootInActiveWindow ?: return
         val inputFields = mutableListOf<AccessibilityNodeInfo>()
-        findEditableNodes(rootNode, inputFields)
+        findEditTextNodes(rootNode, inputFields)
 
-        for (i in 0 until minOf(inputFields.size, values.size)) {
-            val field = inputFields[i]
-            val arguments = Bundle().apply {
-                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, values[i])
+        for (i in 0 until minOf(data.size, inputFields.size)) {
+            val args = Bundle().apply {
+                putCharSequence(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                    data[i]
+                )
             }
-            field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+            inputFields[i].performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
         }
     }
 
-    private fun findEditableNodes(node: AccessibilityNodeInfo, list: MutableList<AccessibilityNodeInfo>) {
-        if (node.isEditable) {
+    private fun findEditTextNodes(node: AccessibilityNodeInfo?, list: MutableList<AccessibilityNodeInfo>) {
+        if (node == null) return
+        if (node.className == "android.widget.EditText") {
             list.add(node)
         }
         for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            findEditableNodes(child, list)
+            findEditTextNodes(node.getChild(i), list)
         }
     }
 
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    override fun onInterrupt() {}
+
     override fun onDestroy() {
         super.onDestroy()
-        instance = null
+        if (instance == this) instance = null
     }
 }
